@@ -31,7 +31,26 @@ class BoundedBackpack:
         Insert at the top (LIFO), then wake any thread waiting in pop().
         """
         # TODO
-        raise NotImplementedError
+        with self._condition:
+            start_time = time.monotonic()
+
+            while len(self._items) >= self.capacity:
+                if timeout is None:
+                    self._condition.wait()
+
+                else:
+                    elapsed = time.monotonic() - start_time
+                    remaining = timeout - elapsed
+
+                    if remaining <= 0:
+                        raise BackpackTimeoutError(
+                            "push() timed out waiting for space"
+                        )
+
+                    self._condition.wait(remaining)
+
+            self._items.append(item)
+            self._condition.notify()
 
     def pop(self, timeout: Optional[float] = None) -> Any:
         """
@@ -40,4 +59,25 @@ class BoundedBackpack:
         Remove and return the top item, then wake any thread waiting in push().
         """
         # TODO
-        raise NotImplementedError
+        with self._condition:
+            start_time = time.monotonic()
+
+            while not self._items:
+                if timeout is None:
+                    self._condition.wait()
+
+                else:
+                    elapsed = time.monotonic() - start_time
+                    remaining = timeout - elapsed
+
+                    if remaining <= 0:
+                        raise BackpackTimeoutError(
+                            "pop() timed out waiting for an item"
+                        )
+
+                    self._condition.wait(remaining)
+
+            item = self._items.pop()
+            self._condition.notify()
+
+            return item
